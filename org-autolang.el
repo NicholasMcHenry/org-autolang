@@ -4,7 +4,7 @@
 
 ;; Author: Nicholas Allen McHenry <nick at futilityquest dot com>
 ;; Created: 22 Jan 2015
-;; Version: "0.1.0"
+;; Version: "0.1.1"
 ;; Keywords: languages, wp, outlines, calendar
 ;; Homepage: https://github.com/clibralus/org-autolang.el
 ;; Package-Requires: ((google-translate "1.0.0"))
@@ -75,6 +75,7 @@
 ;;  (global-set-key (kbd "C-c r") 'google-translate-at-point-reverse) 
 ;;  (global-set-key (kbd "C-c R") 'google-translate-query-translate-reverse)
 ;;  (global-set-key (kbd "C-c s") 'org-autolang-save-translation)
+;;  (global-set-key (kbd "C-c S") 'org-autolang-save-translation-reverse)
 ;;  (setq org-autolang-vocab-file "~/org/all-vocab.org")
 ;;  (setq org-autolang-flashcard-file "~/org/all-flashcards.org")
 
@@ -159,17 +160,23 @@ c) 'simple-original-text-first - for a simple flashcard with the translation on 
         (org-autolang-merge-extra-data parsed-data))
      (t parsed-data))))
 
-(defun org-autolang-parse-translation-buffer ()
+(defun org-autolang-parse-google-translate-buffer ()
   "Splits the *Google Translate* buffer on empty lines and assumes the 1st section says what languages are involved, that the 2nd holds the original text, that the 3rd holds the translation, and that the 4th suggest spelling corrections or list other translation possibilities. Example Output: "
   (with-current-buffer (get-buffer "*Google Translate*")
     (org-autolang-correct-parse-grouping
       (split-string (buffer-string) "\n\n"))))
 
-(defun org-autolang-get-translation-data ()
+(defun org-autolang-get-google-translate-data ()
   "Gets the google-translate.el output and parses it further into a 4 element list."
   (save-current-buffer ;'google-translate-at-point doesn't reset the buffer
     (google-translate-at-point)
-    (org-autolang-parse-translation-buffer)))
+    (org-autolang-parse-google-translate-buffer)))
+
+(defun org-autolang-get-google-translate-data-reverse ()
+  "Gets the google-translate.el output and parses it further into a 4 element list."
+  (save-current-buffer ;'google-translate-at-point doesn't reset the buffer
+    (google-translate-at-point-reverse)
+    (org-autolang-parse-google-translate-buffer)))
 
 (defun org-autolang-add-vocab-to-master-list (data)
   "Appends only the word/phrase and translation to the file specified by the 'vocab-file' variable. Creates the file if it does not exist."
@@ -221,15 +228,26 @@ c) 'simple-original-text-first - for a simple flashcard with the translation on 
         "")
       (append-to-file nil nil org-autolang-flashcard-file))))
 
-(defun org-autolang-save-translation ()
-  "Parses the translation received from google translate and both adds it to the master vocabulary list and creates a flash card for the translated text."
+
+(defun org-autolang-append-to-vocab-and-add-flashcard (translation-function)
+  "Uses the parsed data received from 'translation-function and both adds it to the master vocabulary list and creates a flash card for the translated text. Parsed data is expected to be of the format '(languages-involved orig-text translation extra) where all elements are strings."
   (interactive)
-  (let ((data (org-autolang-get-translation-data)))
+  (let ((data (funcall translation-function)))
     (org-autolang-add-vocab-to-master-list data)
     (case org-autolang-default-flashcard-type
       ('two-sided (org-autolang-add-two-sided-flashcard data)) 
       ('simple-translation-first  (org-autolang-add-simple-flashcard data t))
       ('simple-original-text-first (org-autolang-add-simple-flashcard data nil)))))
+
+(defun org-autolang-save-translation ()
+  (interactive)
+  (org-autolang-append-to-vocab-and-add-flashcard
+   'org-autolang-get-google-translate-data))
+
+(defun org-autolang-save-translation-reverse ()
+  (interactive)
+  (org-autolang-append-to-vocab-and-add-flashcard
+   'org-autolang-get-google-translate-data-reverse))
 
 (provide 'org-autolang)
 ;;; org-autolang.el ends here
