@@ -76,6 +76,7 @@
 ;;  (global-set-key (kbd "C-c R") 'google-translate-query-translate-reverse)
 ;;  (global-set-key (kbd "C-c s") 'org-autolang-save-translation)
 ;;  (global-set-key (kbd "C-c S") 'org-autolang-save-translation-reverse)
+;;  (defalias 'org-autolang-undo 'org-autolang-undo-save-translation)
 ;;  (setq org-autolang-vocab-file "~/org/all-vocab.org")
 ;;  (setq org-autolang-flashcard-file "~/org/all-flashcards.org")
 
@@ -248,6 +249,27 @@ c) 'simple-original-text-first - for a simple flashcard with the translation on 
   (interactive)
   (org-autolang-append-to-vocab-and-add-flashcard
    'org-autolang-get-google-translate-data-reverse))
+
+(defmacro org-autolang-with-file (filepath &rest body)
+  "Open the file into the buffer, move the point to the end, do stuff, save."
+ `(with-current-buffer (find-file-noselect ,filepath)
+    (goto-char (point-max))
+    ,@body
+    (save-buffer)))
+
+(defun org-autolang-delete-final-tree ()
+  "Cut the level 1 parent containing the point. Else silently continue (so that the surrounding code gets executed.)"
+  (ignore-errors
+    (outline-up-heading 101 t)
+    (org-cut-subtree)))
+
+(defun org-autolang-undo-save-translation ()
+  "Dumb undo - Removes everything starting from the last top level header in both the vocabulary list file and the flashcard file. Thus if you've added something to the end manually, this function may not work as expected. Assumes headings are less than ~100 levels deep. Side-effect - saves file despite the modified buffer possibly being open."
+  (interactive)
+  (org-autolang-with-file org-autolang-vocab-file
+    (org-autolang-delete-final-tree))
+  (org-autolang-with-file org-autolang-flashcard-file
+    (org-autolang-delete-final-tree)))
 
 (provide 'org-autolang)
 ;;; org-autolang.el ends here
